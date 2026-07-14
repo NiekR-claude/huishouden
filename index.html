@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Huishouden</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Huishouden">
+<meta name="theme-color" content="#7C6FF0">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --paars:#7C6FF0; --paars-licht:#EDEBFD; --paars-donker:#5B4FD8;
+    --bg:#F6F5FB; --kaart:#FFFFFF; --tekst:#1F1D2E; --tekst-zacht:#8A87A0;
+    --groen:#3CC98A; --groen-licht:#E2F8EE; --rood:#F06D6D; --rood-licht:#FDEAEA;
+    --oranje:#F0A860; --oranje-licht:#FDF3E6; --rand:#ECEAF6;
+    --radius:18px; --schaduw:0 2px 12px rgba(60,50,120,.07);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--tekst);
+    padding-bottom:calc(84px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased; overscroll-behavior-y:contain;
+  }
+  header{
+    padding:calc(14px + env(safe-area-inset-top)) 20px 12px;
+    display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; background:rgba(246,245,251,.92);
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); z-index:10;
+  }
+  header h1{font-size:26px; margin:0; font-weight:800; letter-spacing:-.5px}
+  .sync-dot{width:10px;height:10px;border-radius:50%;background:#C9C6DC;display:inline-block;margin-left:8px;vertical-align:middle}
+  .sync-dot.aan{background:var(--groen)}
+  .sync-dot.fout{background:var(--rood)}
+  .datum{color:var(--tekst-zacht);font-size:14px;font-weight:500}
+  main{padding:0 16px}
+  .sectie-kop{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--tekst-zacht);margin:22px 6px 10px}
+  .sectie-kop.rood{color:var(--rood)}
+  .kaart{
+    background:var(--kaart); border-radius:var(--radius); box-shadow:var(--schaduw);
+    padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; gap:14px;
+  }
+  .emoji-bol{
+    width:46px;height:46px;border-radius:14px;background:var(--paars-licht);
+    display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;
+  }
+  .kaart.telaat .emoji-bol{background:var(--rood-licht)}
+  .kaart-info{flex:1;min-width:0}
+  .kaart-titel{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kaart-sub{font-size:13px;color:var(--tekst-zacht);margin-top:2px}
+  .kaart-sub .telaat-txt{color:var(--rood);font-weight:600}
+  .vink{
+    width:44px;height:44px;border-radius:50%;border:2.5px solid var(--rand);
+    background:none;flex-shrink:0;font-size:20px;color:transparent;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    transition:all .15s;
+  }
+  .vink:active{transform:scale(.88)}
+  .vink.klaar{background:var(--groen);border-color:var(--groen);color:#fff}
+  .leeg{
+    text-align:center;padding:44px 20px;color:var(--tekst-zacht);
+  }
+  .leeg .groot{font-size:52px;margin-bottom:12px}
+  .leeg p{margin:4px 0;font-size:15px}
+  /* Tabbar */
+  nav{
+    position:fixed;bottom:0;left:0;right:0;z-index:20;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--rand);
+    display:flex;justify-content:space-around;
+    padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+  nav button{
+    background:none;border:none;flex:1;padding:6px 0;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    color:var(--tekst-zacht);font-size:11px;font-weight:600;font-family:inherit;
+  }
+  nav button .ic{font-size:22px;line-height:1;filter:grayscale(1);opacity:.55}
+  nav button.actief{color:var(--paars)}
+  nav button.actief .ic{filter:none;opacity:1}
+  /* Zwevende knop */
+  .fab{
+    position:fixed;right:18px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:15;
+    width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+    background:var(--paars);color:#fff;font-size:30px;font-weight:300;
+    box-shadow:0 6px 18px rgba(124,111,240,.45);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .fab:active{transform:scale(.92)}
+  /* Modal */
+  .modal-achter{
+    position:fixed;inset:0;background:rgba(30,25,60,.45);z-index:30;
+    display:none;align-items:flex-end;
+  }
+  .modal-achter.open{display:flex}
+  .modal{
+    background:var(--kaart);width:100%;border-radius:24px 24px 0 0;
+    padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+    max-height:88vh;overflow-y:auto;animation:omhoog .22s ease-out;
+  }
+  @keyframes omhoog{from{transform:translateY(60px);opacity:.4}to{transform:translateY(0);opacity:1}}
+  .modal h2{margin:0 0 18px;font-size:20px}
+  label{display:block;font-size:13px;font-weight:700;color:var(--tekst-zacht);margin:16px 2px 7px;text-transform:uppercase;letter-spacing:.6px}
+  input[type=text],input[type=number],select{
+    width:100%;padding:13px 14px;border-radius:14px;border:1.5px solid var(--rand);
+    font-size:16px;font-family:inherit;background:var(--bg);color:var(--tekst);outline:none;
+  }
+  input:focus,select:focus{border-color:var(--paars)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    padding:9px 14px;border-radius:100px;border:1.5px solid var(--rand);
+    background:var(--kaart);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--tekst);
+  }
+  .chip.actief{background:var(--paars);border-color:var(--paars);color:#fff}
+  .emoji-grid{display:flex;flex-wrap:wrap;gap:6px}
+  .emoji-grid .chip{font-size:20px;padding:8px 11px}
+  .rij-knoppen{display:flex;gap:10px;margin-top:24px}
+  .knop{
+    flex:1;padding:15px;border-radius:16px;border:none;font-size:16px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+  }
+  .knop.primair{background:var(--paars);color:#fff}
+  .knop.primair:active{background:var(--paars-donker)}
+  .knop.stil{background:var(--bg);color:var(--tekst)}
+  .knop.gevaar{background:var(--rood-licht);color:var(--rood)}
+  .knop:disabled{opacity:.4}
+  /* Beheerlijst */
+  .beheer-acties{display:flex;gap:6px}
+  .mini-knop{
+    border:none;background:var(--bg);border-radius:10px;width:38px;height:38px;
+    font-size:16px;cursor:pointer;
+  }
+  /* Stats */
+  .stat-rooster{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat-kaart{background:var(--kaart);border-radius:var(--radius);box-shadow:var(--schaduw);padding:16px}
+  .stat-getal{font-size:30px;font-weight:800;letter-spacing:-1px}
+  .stat-label{font-size:13px;color:var(--tekst-zacht);font-weight:600;margin-top:2px}
+  .balk-wrap{background:var(--kaart);border-radius:var(--radius);box-shadow:var(--schaduw);padding:18px 16px;margin-top:10px}
+  .balk-titel{font-weight:700;font-size:15px;margin-bottom:12px}
+  .verdeel-balk{display:flex;height:16px;border-radius:100px;overflow:hidden;background:var(--rand)}
+  .verdeel-balk .a{background:var(--paars)}
+  .verdeel-balk .b{background:var(--oranje)}
+  .verdeel-legenda{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;font-weight:600}
+  .stip{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+  .log-item{display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--rand);font-size:14px}
+  .log-item:last-child{border-bottom:none}
+  .log-emoji{font-size:20px}
+  .log-wie{margin-left:auto;color:var(--tekst-zacht);font-size:12px;font-weight:600;white-space:nowrap}
+  .week-balken{display:flex;align-items:flex-end;gap:10px;height:110px;margin-top:6px}
+  .week-kolom{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+  .week-staaf{width:100%;max-width:38px;border-radius:8px 8px 4px 4px;background:var(--paars-licht);min-height:4px}
+  .week-staaf.nu{background:var(--paars)}
+  .week-lbl{font-size:11px;color:var(--tekst-zacht);font-weight:600}
+  /* Instellingen */
+  .inst-blok{background:var(--kaart);border-radius:var(--radius);box-shadow:var(--schaduw);padding:18px 16px;margin-bottom:14px}
+  .inst-blok h3{margin:0 0 6px;font-size:16px}
+  .inst-blok p{font-size:13px;color:var(--tekst-zacht);margin:4px 0 12px;line-height:1.45}
+  /* Snackbar */
+  #snack{
+    position:fixed;left:16px;right:16px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:40;
+    background:var(--tekst);color:#fff;border-radius:14px;padding:13px 16px;
+    display:none;align-items:center;justify-content:space-between;font-size:14px;font-weight:600;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+  #snack.open{display:flex}
+  #snack button{background:none;border:none;color:#B7AEFF;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;padding:4px 0 4px 16px}
+  /* Onboarding */
+  #onboard{position:fixed;inset:0;background:var(--bg);z-index:50;overflow-y:auto;display:none;padding:0 22px calc(30px + env(safe-area-inset-bottom))}
+  #onboard.open{display:block}
+  #onboard .kop{text-align:center;padding-top:calc(56px + env(safe-area-inset-top))}
+  #onboard .kop .logo{font-size:64px}
+  #onboard h1{font-size:28px;margin:14px 0 6px;letter-spacing:-.5px}
+  #onboard .sub{color:var(--tekst-zacht);font-size:15px;margin:0 0 8px}
+  .verborgen{display:none !important}
+</style>
+</head>
+<body>
+
+<!-- ====== ONBOARDING ====== -->
+<div id="onboard">
+  <div class="kop">
+    <div class="logo">🏡</div>
+    <h1>Huishouden</h1>
+    <p class="sub">Samen het huishouden bijhouden, zonder gedoe.</p>
+  </div>
+  <label>Naam persoon 1</label>
+  <input type="text" id="ob-naamA" placeholder="Bijv. Emma" autocomplete="off">
+  <label>Naam persoon 2</label>
+  <input type="text" id="ob-naamB" placeholder="Bijv. Niek" autocomplete="off">
+  <label>Wie ben jij op dit toestel?</label>
+  <div class="chips" id="ob-wie">
+    <button class="chip actief" data-w="A">Persoon 1</button>
+    <button class="chip" data-w="B">Persoon 2</button>
+  </div>
+  <label>Huishoudcode (voor sync tussen jullie telefoons)</label>
+  <input type="text" id="ob-code" placeholder="Bijv. emma-niek-2026" autocomplete="off">
+  <p style="font-size:12px;color:var(--tekst-zacht);margin:6px 2px">Vul op beide telefoons dezelfde code in. Leeg laten = alleen lokaal gebruiken.</p>
+  <label>Startset</label>
+  <div class="chips">
+    <button class="chip actief" id="ob-voorbeeld">Voorbeeldtaken toevoegen ✓</button>
+  </div>
+  <div class="rij-knoppen">
+    <button class="knop primair" id="ob-start">Aan de slag →</button>
+  </div>
+</div>
+
+<!-- ====== APP ====== -->
+<header>
+  <h1 id="paginatitel">Vandaag<span class="sync-dot" id="syncdot"></span></h1>
+  <span class="datum" id="datumlabel"></span>
+</header>
+
+<main>
+  <div id="tab-vandaag"></div>
+  <div id="tab-taken" class="verborgen"></div>
+  <div id="tab-stats" class="verborgen"></div>
+  <div id="tab-inst" class="verborgen"></div>
+</main>
+
+<button class="fab" id="fab" title="Taak toevoegen">+</button>
+
+<nav>
+  <button data-tab="vandaag" class="actief"><span class="ic">☀️</span>Vandaag</button>
+  <button data-tab="taken"><span class="ic">🧺</span>Taken</button>
+  <button data-tab="stats"><span class="ic">📊</span>Overzicht</button>
+  <button data-tab="inst"><span class="ic">⚙️</span>Instellingen</button>
+</nav>
+
+<div id="snack"><span id="snacktxt"></span><button id="snackactie">Ongedaan</button></div>
+
+<!-- ====== TAAK MODAL ====== -->
+<div class="modal-achter" id="taakmodal-achter">
+  <div class="modal">
+    <h2 id="taakmodal-titel">Nieuwe taak</h2>
+    <label>Naam</label>
+    <input type="text" id="tm-naam" placeholder="Bijv. Stofzuigen" autocomplete="off">
+    <label>Icoon</label>
+    <div class="emoji-grid" id="tm-emoji"></div>
+    <label>Hoe vaak?</label>
+    <div class="chips" id="tm-freq">
+      <button class="chip" data-d="1">Dagelijks</button>
+      <button class="chip" data-d="2">Om de dag</button>
+      <button class="chip actief" data-d="7">Wekelijks</button>
+      <button class="chip" data-d="14">2-wekelijks</button>
+      <button class="chip" data-d="30">Maandelijks</button>
+      <button class="chip" data-d="custom">Anders…</button>
+    </div>
+    <div id="tm-custom-wrap" class="verborgen">
+      <label>Om de hoeveel dagen?</label>
+      <input type="number" id="tm-custom" min="1" max="365" value="10" inputmode="numeric">
+    </div>
+    <label>Voor wie?</label>
+    <div class="chips" id="tm-wie">
+      <button class="chip actief" data-w="X">Beiden</button>
+      <button class="chip" data-w="A"></button>
+      <button class="chip" data-w="B"></button>
+    </div>
+    <div class="rij-knoppen">
+      <button class="knop stil" id="tm-annuleer">Annuleren</button>
+      <button class="knop primair" id="tm-opslaan">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   FIREBASE CONFIG — alleen nodig voor sync tussen twee telefoons.
+   >>> PLAK HIER JE FIREBASE CONFIG (zie HANDLEIDING.md, stap 2) <<<
+   Vervang `null` door het config-object, bijvoorbeeld:
+   const FIREBASE_CONFIG = { apiKey:"...", authDomain:"...", projectId:"...", ... };
+================================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCJ6P8kNRJX_n6rIaW7Ja6PuIZ-D-mDVzE",
+  authDomain: "huishouden-c8f2d.firebaseapp.com",
+  projectId: "huishouden-c8f2d",
+  storageBucket: "huishouden-c8f2d.firebasestorage.app",
+  messagingSenderId: "216020033703",
+  appId: "1:216020033703:web:e02d806f3f3f50ddfbbb82"
+};
+
+/* ============ Helpers ============ */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad = n => String(n).padStart(2, "0");
+function dstr(d){ return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+function vandaag(){ return dstr(new Date()); }
+function plusDagen(ds, n){ const [y,m,d] = ds.split("-").map(Number); const dt = new Date(y, m-1, d + n); return dstr(dt); }
+function diffDagen(a, b){ const pa = a.split("-").map(Number), pb = b.split("-").map(Number);
+  return Math.round((new Date(pb[0],pb[1]-1,pb[2]) - new Date(pa[0],pa[1]-1,pa[2])) / 864e5); }
+const DAGEN = ["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"];
+const MAANDEN = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+
+/* ============ State ============ */
+const LS_STATE = "hh_state_v1", LS_ME = "hh_me", LS_CODE = "hh_code", LS_KLAAR = "hh_onboard";
+let state = {
+  names: { A: "Persoon 1", B: "Persoon 2" },
+  namesUpdatedAt: 0,
+  tasks: [],   // {id, naam, emoji, interval, wie, lastDone, updatedAt, deleted}
+  log: []      // {id, taskId, naam, emoji, date, by, ts}
+};
+let me = localStorage.getItem(LS_ME) || "A";
+let huisCode = localStorage.getItem(LS_CODE) || "";
+let actieveTab = "vandaag";
+let bewerkId = null;
+let laatsteActie = null;
+let syncStatus = "uit"; // uit | aan | fout
+let fbDoc = null, negeerSnapshot = false;
+
+function laadLokaal(){
+  try { const r = localStorage.getItem(LS_STATE); if (r) state = Object.assign(state, JSON.parse(r)); } catch(e){}
+}
+function bewaarLokaal(){ localStorage.setItem(LS_STATE, JSON.stringify(state)); }
+
+/* ============ Merge (voor sync) ============ */
+function mergeStates(lokaal, remote){
+  const uit = { names: lokaal.names, namesUpdatedAt: lokaal.namesUpdatedAt || 0, tasks: [], log: [] };
+  if ((remote.namesUpdatedAt || 0) > (lokaal.namesUpdatedAt || 0)) {
+    uit.names = remote.names; uit.namesUpdatedAt = remote.namesUpdatedAt;
+  }
+  const perId = {};
+  (lokaal.tasks || []).concat(remote.tasks || []).forEach(t => {
+    if (!perId[t.id] || (t.updatedAt || 0) > (perId[t.id].updatedAt || 0)) perId[t.id] = t;
+  });
+  uit.tasks = Object.values(perId);
+  const logIds = {};
+  uit.log = (lokaal.log || []).concat(remote.log || []).filter(l => {
+    if (logIds[l.id]) return false; logIds[l.id] = 1; return true;
+  }).sort((a,b) => b.ts - a.ts).slice(0, 800);
+  return uit;
+}
+
+/* ============ Firebase sync ============ */
+function scriptLaden(src){ return new Promise((ok, nee) => {
+  const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = nee; document.head.appendChild(s);
+});}
+async function startSync(){
+  if (!FIREBASE_CONFIG || !huisCode) { syncStatus = "uit"; tekenSyncDot(); return; }
+  try {
+    await scriptLaden("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
+    await scriptLaden("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js");
+    firebase.initializeApp(FIREBASE_CONFIG);
+    const db = firebase.firestore();
+    fbDoc = db.collection("huishoudens").doc(huisCode);
+    fbDoc.onSnapshot(snap => {
+      syncStatus = "aan"; tekenSyncDot();
+      if (negeerSnapshot) { negeerSnapshot = false; return; }
+      const remote = snap.exists ? snap.data() : null;
+      if (!remote) { pushSync(); return; }
+      const samengevoegd = mergeStates(state, remote);
+      const veranderdLokaal = JSON.stringify(samengevoegd) !== JSON.stringify(state);
+      const veranderdRemote = JSON.stringify(samengevoegd) !== JSON.stringify(remote);
+      state = samengevoegd; bewaarLokaal();
+      if (veranderdLokaal) tekenAlles();
+      if (veranderdRemote) pushSync();
+    }, err => { console.warn("sync-fout", err); syncStatus = "fout"; tekenSyncDot(); });
+  } catch(e){ console.warn("firebase laden mislukt", e); syncStatus = "fout"; tekenSyncDot(); }
+}
+function pushSync(){
+  if (!fbDoc) return;
+  negeerSnapshot = true;
+  fbDoc.set({ names: state.names, namesUpdatedAt: state.namesUpdatedAt || 0, tasks: state.tasks, log: state.log })
+    .catch(e => { console.warn(e); syncStatus = "fout"; tekenSyncDot(); });
+}
+function bewaar(){ bewaarLokaal(); pushSync(); }
+
+/* ============ Taaklogica ============ */
+function actieveTaken(){ return state.tasks.filter(t => !t.deleted); }
+function volgendeDatum(t){ return t.lastDone ? plusDagen(t.lastDone, t.interval) : vandaag(); }
+function naamVan(w){ return w === "X" ? "Beiden" : (state.names[w] || "?"); }
+function freqTekst(n){
+  if (n === 1) return "dagelijks"; if (n === 2) return "om de dag"; if (n === 7) return "wekelijks";
+  if (n === 14) return "elke 2 weken"; if (n === 30) return "maandelijks"; return "elke " + n + " dagen";
+}
+
+/* ============ Render: Vandaag ============ */
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function taakKaart(t, sectie){
+  const nd = volgendeDatum(t);
+  const dagen = diffDagen(vandaag(), nd); // >0 = toekomst, <0 = te laat
+  let sub = freqTekst(t.interval) + " · " + naamVan(t.wie);
+  if (dagen < 0) sub = "<span class='telaat-txt'>" + Math.abs(dagen) + (Math.abs(dagen) === 1 ? " dag" : " dagen") + " te laat</span> · " + naamVan(t.wie);
+  if (sectie === "later") {
+    const lbl = dagen === 1 ? "morgen" : "over " + dagen + " dagen";
+    sub = lbl + " · " + freqTekst(t.interval) + " · " + naamVan(t.wie);
+  }
+  const vinkbaar = sectie !== "later";
+  return "<div class='kaart" + (dagen < 0 ? " telaat" : "") + "'>" +
+    "<div class='emoji-bol'>" + t.emoji + "</div>" +
+    "<div class='kaart-info'><div class='kaart-titel'>" + esc(t.naam) + "</div><div class='kaart-sub'>" + sub + "</div></div>" +
+    (vinkbaar ? "<button class='vink' data-klaar='" + t.id + "'>✓</button>" : "") +
+    "</div>";
+}
+
+function tekenVandaag(){
+  const el = $("#tab-vandaag");
+  const t = actieveTaken();
+  const telaat = [], nu = [], later = [], klaarVandaag = [];
+  t.forEach(x => {
+    if (x.lastDone === vandaag()) { klaarVandaag.push(x); return; }
+    const d = diffDagen(vandaag(), volgendeDatum(x));
+    if (d < 0) telaat.push(x); else if (d === 0) nu.push(x);
+    else if (d <= 7) later.push(x);
+  });
+  telaat.sort((a,b) => diffDagen(vandaag(), volgendeDatum(a)) - diffDagen(vandaag(), volgendeDatum(b)));
+  later.sort((a,b) => diffDagen(vandaag(), volgendeDatum(a)) - diffDagen(vandaag(), volgendeDatum(b)));
+  let h = "";
+  if (telaat.length) h += "<div class='sectie-kop rood'>Te laat</div>" + telaat.map(x => taakKaart(x, "telaat")).join("");
+  if (nu.length) h += "<div class='sectie-kop'>Vandaag</div>" + nu.map(x => taakKaart(x, "nu")).join("");
+  if (later.length) h += "<div class='sectie-kop'>Binnenkort</div>" + later.map(x => taakKaart(x, "later")).join("");
+  if (klaarVandaag.length) {
+    h += "<div class='sectie-kop'>Vandaag gedaan 🎉</div>" + klaarVandaag.map(x =>
+      "<div class='kaart' style='opacity:.55'><div class='emoji-bol'>" + x.emoji + "</div>" +
+      "<div class='kaart-info'><div class='kaart-titel' style='text-decoration:line-through'>" + esc(x.naam) + "</div>" +
+      "<div class='kaart-sub'>afgevinkt</div></div><button class='vink klaar' data-terug='" + x.id + "'>✓</button></div>").join("");
+  }
+  if (!h) h = "<div class='leeg'><div class='groot'>🌤️</div><p><b>Niks te doen!</b></p><p>Voeg taken toe met de + knop.</p></div>";
+  el.innerHTML = h;
+}
+
+/* ============ Render: Taken (beheer) ============ */
+function tekenTaken(){
+  const el = $("#tab-taken");
+  const t = actieveTaken().slice().sort((a,b) => a.naam.localeCompare(b.naam));
+  if (!t.length) { el.innerHTML = "<div class='leeg'><div class='groot'>🧺</div><p><b>Nog geen taken</b></p><p>Tik op + om je eerste taak te maken.</p></div>"; return; }
+  el.innerHTML = "<div class='sectie-kop'>" + t.length + (t.length === 1 ? " taak" : " taken") + "</div>" + t.map(x => {
+    const ld = x.lastDone ? formatteerDatum(x.lastDone) : "nog nooit";
+    return "<div class='kaart'><div class='emoji-bol'>" + x.emoji + "</div>" +
+      "<div class='kaart-info'><div class='kaart-titel'>" + esc(x.naam) + "</div>" +
+      "<div class='kaart-sub'>" + freqTekst(x.interval) + " · " + naamVan(x.wie) + " · laatst: " + ld + "</div></div>" +
+      "<div class='beheer-acties'><button class='mini-knop' data-bewerk='" + x.id + "'>✏️</button>" +
+      "<button class='mini-knop' data-weg='" + x.id + "'>🗑️</button></div></div>";
+  }).join("");
+}
+function formatteerDatum(ds){
+  const d = diffDagen(ds, vandaag());
+  if (d === 0) return "vandaag"; if (d === 1) return "gisteren";
+  if (d < 7) return d + " dagen geleden";
+  const p = ds.split("-"); return Number(p[2]) + " " + MAANDEN[Number(p[1])-1];
+}
+
+/* ============ Render: Stats ============ */
+function weekStart(ds){ const [y,m,d] = ds.split("-").map(Number); const dt = new Date(y,m-1,d);
+  const dag = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - dag); return dstr(dt); }
+function tekenStats(){
+  const el = $("#tab-stats");
+  const log = state.log || [];
+  const ws = weekStart(vandaag());
+  const dezeWeek = log.filter(l => l.date >= ws);
+  const maandStart = vandaag().slice(0,8) + "01";
+  const dezeMaand = log.filter(l => l.date >= maandStart);
+  const aW = dezeWeek.filter(l => l.by === "A").length, bW = dezeWeek.filter(l => l.by === "B").length;
+  const openTeLaat = actieveTaken().filter(t => diffDagen(vandaag(), volgendeDatum(t)) < 0).length;
+
+  // reeks: aaneengesloten dagen (eindigend vandaag of gisteren) met >=1 afgevinkte taak
+  const dagenMetLog = new Set(log.map(l => l.date));
+  let reeks = 0, cursor = dagenMetLog.has(vandaag()) ? vandaag() : plusDagen(vandaag(), -1);
+  while (dagenMetLog.has(cursor)) { reeks++; cursor = plusDagen(cursor, -1); }
+
+  // laatste 4 weken staafjes
+  let weekHtml = "";
+  let maxW = 1; const weekTellingen = [];
+  for (let i = 3; i >= 0; i--) {
+    const start = plusDagen(ws, -7 * i), eind = plusDagen(start, 7);
+    const n = log.filter(l => l.date >= start && l.date < eind).length;
+    weekTellingen.push({ n, nu: i === 0, lbl: i === 0 ? "nu" : i + " wk" });
+    if (n > maxW) maxW = n;
+  }
+  weekTellingen.forEach(w => {
+    const hoogte = Math.max(4, Math.round(w.n / maxW * 82));
+    weekHtml += "<div class='week-kolom'><div style='font-size:12px;font-weight:700;color:var(--tekst-zacht)'>" + w.n + "</div>" +
+      "<div class='week-staaf" + (w.nu ? " nu" : "") + "' style='height:" + hoogte + "px'></div>" +
+      "<div class='week-lbl'>" + w.lbl + "</div></div>";
+  });
+
+  const totaalW = aW + bW;
+  const pctA = totaalW ? Math.round(aW / totaalW * 100) : 50;
+  const recent = log.slice(0, 12).map(l =>
+    "<div class='log-item'><span class='log-emoji'>" + (l.emoji || "✅") + "</span><span>" + esc(l.naam) + "</span>" +
+    "<span class='log-wie'>" + esc(state.names[l.by] || "?") + " · " + formatteerDatum(l.date) + "</span></div>").join("");
+
+  el.innerHTML =
+    "<div class='sectie-kop'>Deze week</div>" +
+    "<div class='stat-rooster'>" +
+      "<div class='stat-kaart'><div class='stat-getal'>" + totaalW + "</div><div class='stat-label'>taken gedaan</div></div>" +
+      "<div class='stat-kaart'><div class='stat-getal'>" + reeks + " 🔥</div><div class='stat-label'>dagen op rij actief</div></div>" +
+      "<div class='stat-kaart'><div class='stat-getal'>" + dezeMaand.length + "</div><div class='stat-label'>deze maand</div></div>" +
+      "<div class='stat-kaart'><div class='stat-getal' style='color:" + (openTeLaat ? "var(--rood)" : "var(--groen)") + "'>" + openTeLaat + "</div><div class='stat-label'>te laat</div></div>" +
+    "</div>" +
+    "<div class='balk-wrap'><div class='balk-titel'>Verdeling deze week</div>" +
+      "<div class='verdeel-balk'><div class='a' style='width:" + pctA + "%'></div><div class='b' style='width:" + (100 - pctA) + "%'></div></div>" +
+      "<div class='verdeel-legenda'><span><span class='stip' style='background:var(--paars)'></span>" + esc(state.names.A) + " · " + aW + "</span>" +
+      "<span><span class='stip' style='background:var(--oranje)'></span>" + esc(state.names.B) + " · " + bW + "</span></div></div>" +
+    "<div class='balk-wrap'><div class='balk-titel'>Laatste 4 weken</div><div class='week-balken'>" + weekHtml + "</div></div>" +
+    "<div class='balk-wrap'><div class='balk-titel'>Recente activiteit</div>" +
+      (recent || "<div style='color:var(--tekst-zacht);font-size:14px'>Nog niks afgevinkt.</div>") + "</div>";
+}
+
+/* ============ Render: Instellingen ============ */
+function tekenInst(){
+  const el = $("#tab-inst");
+  const syncTekst = !FIREBASE_CONFIG
+    ? "Sync is nog niet geconfigureerd. Zie HANDLEIDING.md om Firebase in te stellen — daarna delen jullie automatisch dezelfde takenlijst."
+    : (huisCode ? "Verbonden met huishouden “" + esc(huisCode) + "”. Status: " + (syncStatus === "aan" ? "✅ actief" : syncStatus === "fout" ? "⚠️ fout — check je internetverbinding of Firestore-regels" : "⏳ verbinden…")
+      : "Vul een huishoudcode in om te synchroniseren.");
+  el.innerHTML =
+    "<div class='inst-blok'><h3>Namen</h3>" +
+      "<label>Persoon 1</label><input type='text' id='in-naamA' value='" + esc(state.names.A) + "'>" +
+      "<label>Persoon 2</label><input type='text' id='in-naamB' value='" + esc(state.names.B) + "'>" +
+      "<label>Wie ben jij op dit toestel?</label>" +
+      "<div class='chips' id='in-wie'>" +
+        "<button class='chip" + (me === "A" ? " actief" : "") + "' data-w='A'>" + esc(state.names.A) + "</button>" +
+        "<button class='chip" + (me === "B" ? " actief" : "") + "' data-w='B'>" + esc(state.names.B) + "</button></div>" +
+      "<div class='rij-knoppen'><button class='knop primair' id='in-bewaarnamen'>Bewaren</button></div></div>" +
+    "<div class='inst-blok'><h3>Synchronisatie</h3><p>" + syncTekst + "</p>" +
+      "<label>Huishoudcode</label><input type='text' id='in-code' value='" + esc(huisCode) + "' placeholder='Bijv. emma-niek-2026'>" +
+      "<div class='rij-knoppen'><button class='knop primair' id='in-bewaarcode'>Code bewaren</button></div></div>" +
+    "<div class='inst-blok'><h3>Back-up</h3><p>Exporteer je gegevens als bestand, of zet een back-up terug.</p>" +
+      "<div class='rij-knoppen'><button class='knop stil' id='in-export'>Exporteren</button>" +
+      "<button class='knop stil' id='in-import'>Importeren</button></div>" +
+      "<input type='file' id='in-importfile' accept='.json' class='verborgen'></div>" +
+    "<div class='inst-blok'><h3>Opnieuw beginnen</h3><p>Verwijdert alle taken en geschiedenis" + (huisCode && FIREBASE_CONFIG ? " op dit toestel én in het gedeelde huishouden" : "") + ".</p>" +
+      "<div class='rij-knoppen'><button class='knop gevaar' id='in-reset'>Alles wissen</button></div></div>";
+
+  $("#in-wie").addEventListener("click", e => {
+    const b = e.target.closest("[data-w]"); if (!b) return;
+    me = b.dataset.w; localStorage.setItem(LS_ME, me); tekenInst();
+  });
+  $("#in-bewaarnamen").onclick = () => {
+    state.names.A = $("#in-naamA").value.trim() || "Persoon 1";
+    state.names.B = $("#in-naamB").value.trim() || "Persoon 2";
+    state.namesUpdatedAt = Date.now();
+    bewaar(); toast("Namen bewaard"); tekenAlles();
+  };
+  $("#in-bewaarcode").onclick = () => {
+    huisCode = $("#in-code").value.trim();
+    localStorage.setItem(LS_CODE, huisCode);
+    toast("Code bewaard — app herstart");
+    setTimeout(() => location.reload(), 700);
+  };
+  $("#in-export").onclick = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "huishouden-backup-" + vandaag() + ".json"; a.click();
+  };
+  $("#in-import").onclick = () => $("#in-importfile").click();
+  $("#in-importfile").onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { try {
+      const data = JSON.parse(r.result);
+      if (!data.tasks) throw 0;
+      state = mergeStates(state, data); bewaar(); tekenAlles(); toast("Back-up geïmporteerd");
+    } catch(_) { toast("Ongeldig bestand"); } };
+    r.readAsText(f);
+  };
+  $("#in-reset").onclick = () => {
+    if (!confirm("Weet je het zeker? Dit verwijdert alles.")) return;
+    state.tasks = []; state.log = []; bewaar(); tekenAlles(); toast("Alles gewist");
+  };
+}
+
+/* ============ Afvinken ============ */
+function vinkAf(id){
+  const t = state.tasks.find(x => x.id === id); if (!t) return;
+  const vorige = t.lastDone;
+  t.lastDone = vandaag(); t.updatedAt = Date.now();
+  const logItem = { id: uid(), taskId: t.id, naam: t.naam, emoji: t.emoji, date: vandaag(), by: me, ts: Date.now() };
+  state.log.unshift(logItem);
+  laatsteActie = { taakId: t.id, vorige, logId: logItem.id };
+  bewaar(); tekenAlles();
+  toast(t.emoji + " " + t.naam + " gedaan!", true);
+}
+function maakOngedaan(){
+  if (!laatsteActie) return;
+  const t = state.tasks.find(x => x.id === laatsteActie.taakId);
+  if (t) { t.lastDone = laatsteActie.vorige; t.updatedAt = Date.now(); }
+  state.log = state.log.filter(l => l.id !== laatsteActie.logId);
+  laatsteActie = null; bewaar(); tekenAlles(); verbergSnack();
+}
+function vinkTerug(id){
+  const t = state.tasks.find(x => x.id === id); if (!t) return;
+  const entry = state.log.find(l => l.taskId === id && l.date === vandaag());
+  if (entry) state.log = state.log.filter(l => l.id !== entry.id);
+  const eerder = state.log.filter(l => l.taskId === id).map(l => l.date).sort().pop() || null;
+  t.lastDone = eerder; t.updatedAt = Date.now();
+  bewaar(); tekenAlles();
+}
+
+/* ============ Snackbar ============ */
+let snackTimer = null;
+function toast(txt, metOngedaan){
+  $("#snacktxt").textContent = txt;
+  $("#snackactie").style.display = metOngedaan ? "block" : "none";
+  $("#snack").classList.add("open");
+  clearTimeout(snackTimer);
+  snackTimer = setTimeout(verbergSnack, 3200);
+}
+function verbergSnack(){ $("#snack").classList.remove("open"); }
+$("#snackactie").onclick = maakOngedaan;
+
+/* ============ Taakmodal ============ */
+const EMOJIS = ["🧹","🧺","🍽️","🛒","🚿","🪟","🛏️","🌱","🐱","🗑️","👕","🧽","🍳","🚽","🧴","📦"];
+let gekozenEmoji = "🧹";
+function openTaakModal(id){
+  bewerkId = id || null;
+  const t = id ? state.tasks.find(x => x.id === id) : null;
+  $("#taakmodal-titel").textContent = t ? "Taak bewerken" : "Nieuwe taak";
+  $("#tm-naam").value = t ? t.naam : "";
+  gekozenEmoji = t ? t.emoji : "🧹";
+  $("#tm-emoji").innerHTML = EMOJIS.map(e =>
+    "<button class='chip" + (e === gekozenEmoji ? " actief" : "") + "' data-e='" + e + "'>" + e + "</button>").join("");
+  const interval = t ? t.interval : 7;
+  const std = [1,2,7,14,30].includes(interval);
+  $$("#tm-freq .chip").forEach(c => c.classList.toggle("actief",
+    std ? c.dataset.d == interval : c.dataset.d === "custom"));
+  $("#tm-custom-wrap").classList.toggle("verborgen", std);
+  if (!std) $("#tm-custom").value = interval;
+  const wie = t ? t.wie : "X";
+  $$("#tm-wie .chip").forEach(c => {
+    if (c.dataset.w === "A") c.textContent = state.names.A;
+    if (c.dataset.w === "B") c.textContent = state.names.B;
+    c.classList.toggle("actief", c.dataset.w === wie);
+  });
+  $("#taakmodal-achter").classList.add("open");
+}
+function sluitTaakModal(){ $("#taakmodal-achter").classList.remove("open"); }
+$("#tm-emoji").addEventListener("click", e => {
+  const b = e.target.closest("[data-e]"); if (!b) return;
+  gekozenEmoji = b.dataset.e;
+  $$("#tm-emoji .chip").forEach(c => c.classList.toggle("actief", c.dataset.e === gekozenEmoji));
+});
+$("#tm-freq").addEventListener("click", e => {
+  const b = e.target.closest("[data-d]"); if (!b) return;
+  $$("#tm-freq .chip").forEach(c => c.classList.remove("actief"));
+  b.classList.add("actief");
+  $("#tm-custom-wrap").classList.toggle("verborgen", b.dataset.d !== "custom");
+});
+$("#tm-wie").addEventListener("click", e => {
+  const b = e.target.closest("[data-w]"); if (!b) return;
+  $$("#tm-wie .chip").forEach(c => c.classList.remove("actief"));
+  b.classList.add("actief");
+});
+$("#tm-annuleer").onclick = sluitTaakModal;
+$("#taakmodal-achter").addEventListener("click", e => { if (e.target === e.currentTarget) sluitTaakModal(); });
+$("#tm-opslaan").onclick = () => {
+  const naam = $("#tm-naam").value.trim();
+  if (!naam) { $("#tm-naam").focus(); return; }
+  const fc = $("#tm-freq .chip.actief");
+  let interval = fc.dataset.d === "custom" ? parseInt($("#tm-custom").value, 10) || 7 : parseInt(fc.dataset.d, 10);
+  if (interval < 1) interval = 1;
+  const wie = $("#tm-wie .chip.actief").dataset.w;
+  if (bewerkId) {
+    const t = state.tasks.find(x => x.id === bewerkId);
+    Object.assign(t, { naam, emoji: gekozenEmoji, interval, wie, updatedAt: Date.now() });
+  } else {
+    state.tasks.push({ id: uid(), naam, emoji: gekozenEmoji, interval, wie, lastDone: null, updatedAt: Date.now() });
+  }
+  bewaar(); sluitTaakModal(); tekenAlles();
+};
+
+/* ============ Navigatie & events ============ */
+const TITELS = { vandaag: "Vandaag", taken: "Taken", stats: "Overzicht", inst: "Instellingen" };
+function wisselTab(naam){
+  actieveTab = naam;
+  $$("nav button").forEach(b => b.classList.toggle("actief", b.dataset.tab === naam));
+  ["vandaag","taken","stats","inst"].forEach(t => $("#tab-" + t).classList.toggle("verborgen", t !== naam));
+  $("#paginatitel").innerHTML = TITELS[naam] + "<span class='sync-dot' id='syncdot'></span>";
+  tekenSyncDot();
+  $("#fab").style.display = (naam === "vandaag" || naam === "taken") ? "flex" : "none";
+  tekenAlles();
+}
+document.querySelector("nav").addEventListener("click", e => {
+  const b = e.target.closest("[data-tab]"); if (b) wisselTab(b.dataset.tab);
+});
+$("#fab").onclick = () => openTaakModal();
+document.body.addEventListener("click", e => {
+  const klaar = e.target.closest("[data-klaar]");
+  if (klaar) { vinkAf(klaar.dataset.klaar); return; }
+  const terug = e.target.closest("[data-terug]");
+  if (terug) { vinkTerug(terug.dataset.terug); return; }
+  const bewerk = e.target.closest("[data-bewerk]");
+  if (bewerk) { openTaakModal(bewerk.dataset.bewerk); return; }
+  const weg = e.target.closest("[data-weg]");
+  if (weg) {
+    const t = state.tasks.find(x => x.id === weg.dataset.weg);
+    if (t && confirm("“" + t.naam + "” verwijderen?")) {
+      t.deleted = true; t.updatedAt = Date.now(); bewaar(); tekenAlles();
+    }
+  }
+});
+
+function tekenSyncDot(){
+  const d = $("#syncdot"); if (!d) return;
+  d.className = "sync-dot" + (syncStatus === "aan" ? " aan" : syncStatus === "fout" ? " fout" : "");
+}
+function tekenAlles(){
+  if (actieveTab === "vandaag") tekenVandaag();
+  if (actieveTab === "taken") tekenTaken();
+  if (actieveTab === "stats") tekenStats();
+  if (actieveTab === "inst") tekenInst();
+}
+
+/* ============ Onboarding ============ */
+const VOORBEELD = [
+  ["Stofzuigen","🧹",7],["Was draaien","👕",3],["Vaatwasser uitruimen","🍽️",1],
+  ["Boodschappen","🛒",7],["Badkamer schoonmaken","🚿",7],["Bed verschonen","🛏️",14],
+  ["Planten water geven","🌱",7],["Afval buiten zetten","🗑️",7],["Wc schoonmaken","🚽",7],["Ramen lappen","🪟",30]
+];
+function startOnboarding(){
+  $("#onboard").classList.add("open");
+  let obWie = "A", obVoorbeeld = true;
+  $("#ob-wie").addEventListener("click", e => {
+    const b = e.target.closest("[data-w]"); if (!b) return;
+    obWie = b.dataset.w;
+    $$("#ob-wie .chip").forEach(c => c.classList.toggle("actief", c.dataset.w === obWie));
+  });
+  $("#ob-voorbeeld").onclick = () => {
+    obVoorbeeld = !obVoorbeeld;
+    $("#ob-voorbeeld").classList.toggle("actief", obVoorbeeld);
+    $("#ob-voorbeeld").textContent = "Voorbeeldtaken toevoegen " + (obVoorbeeld ? "✓" : "");
+  };
+  $("#ob-start").onclick = () => {
+    state.names.A = $("#ob-naamA").value.trim() || "Persoon 1";
+    state.names.B = $("#ob-naamB").value.trim() || "Persoon 2";
+    state.namesUpdatedAt = Date.now();
+    me = obWie; localStorage.setItem(LS_ME, me);
+    huisCode = $("#ob-code").value.trim(); localStorage.setItem(LS_CODE, huisCode);
+    if (obVoorbeeld && !state.tasks.length) {
+      VOORBEELD.forEach(([n, e, i]) => state.tasks.push({ id: uid(), naam: n, emoji: e, interval: i, wie: "X", lastDone: null, updatedAt: Date.now() }));
+    }
+    localStorage.setItem(LS_KLAAR, "1");
+    bewaarLokaal();
+    $("#onboard").classList.remove("open");
+    start();
+  };
+}
+
+/* ============ Start ============ */
+function start(){
+  const d = new Date();
+  $("#datumlabel").textContent = DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()];
+  wisselTab("vandaag");
+  startSync();
+}
+laadLokaal();
+if (!localStorage.getItem(LS_KLAAR)) startOnboarding(); else start();
+
+/* Service worker */
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+/* Ververs bij terugkeer naar de app (nieuwe dag / sync) */
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { const d = new Date();
+  $("#datumlabel").textContent = DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()]; tekenAlles(); } });
+</script>
+</body>
+</html>
